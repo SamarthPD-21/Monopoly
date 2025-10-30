@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 type AuthContextValue = {
   token: string | null
   currentUser: string | null
-  loginWithToken: (token: string, refreshToken?: string) => void
+  loginWithToken: (token: string, refreshToken?: string, username?: string) => void
   logout: () => void
   tryRefreshIfNeeded: () => Promise<string | null>
 }
@@ -35,9 +35,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try { if (refresh) localStorage.setItem('refreshToken', refresh); else if (refresh === null) localStorage.removeItem('refreshToken') } catch {}
   }
 
-  function loginWithToken(t: string, refresh?: string) {
+  function loginWithToken(t: string, refresh?: string, username?: string) {
     setToken(t)
     if (refresh) setRefreshToken(refresh)
+    if (username) setCurrentUser(username)
     persistToken(t, refresh ?? null)
   }
 

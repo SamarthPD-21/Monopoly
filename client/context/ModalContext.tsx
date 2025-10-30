@@ -22,9 +22,15 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
   function openModal(t: ModalType) { setType(t) }
   function closeModal() { setType(null) }
 
-  function handleLogin(token: string) {
+  function handleLogin(token: string, username?: string) {
     // let AuthContext persist token
-    try { loginWithToken(token) } catch {}
+    try { loginWithToken(token, undefined, username) } catch {}
+    closeModal()
+  }
+
+  function handleSignup(token: string, username?: string) {
+    // Auto-login after signup with the returned token
+    try { loginWithToken(token, undefined, username) } catch {}
     closeModal()
   }
 
@@ -38,7 +44,7 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
       )}
       {type === 'signup' && (
         <Modal onClose={closeModal}>
-          <SignupForm onSignup={() => { closeModal(); openModal('login') }} onCancel={closeModal} />
+          <SignupForm onSignup={(t) => handleSignup(t)} onCancel={closeModal} />
         </Modal>
       )}
     </ModalContext.Provider>

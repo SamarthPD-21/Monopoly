@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 
-export default function SignupForm({ onSignup, onCancel }: { onSignup?: () => void; onCancel?: () => void }) {
+export default function SignupForm({ onSignup, onCancel }: { onSignup?: (token: string, username?: string) => void; onCancel?: () => void }) {
   const emailRef = useRef<HTMLInputElement | null>(null)
   const userRef = useRef<HTMLInputElement | null>(null)
   const passRef = useRef<HTMLInputElement | null>(null)
@@ -26,8 +26,20 @@ export default function SignupForm({ onSignup, onCancel }: { onSignup?: () => vo
       })
       const j = await res.json()
       if (res.ok && j.success) {
-        toast.success('Account created! Please sign in.')
-        if (onSignup) onSignup()
+        // Store tokens for auto-login
+        if (j.token) {
+          try { localStorage.setItem('token', j.token) } catch {}
+        }
+        if (j.refreshToken) {
+          try { localStorage.setItem('refreshToken', j.refreshToken) } catch {}
+        }
+        
+        toast.success('Account created! Welcome aboard! 🚀')
+        
+        // Auto-login by calling onSignup with token
+        if (onSignup && j.token) {
+          onSignup(j.token, j.username)
+        }
         if (onCancel) onCancel()
       } else {
         if (j.errors) {

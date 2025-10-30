@@ -44,9 +44,23 @@ public class AuthController {
         try {
             Authentication a = authManager.authenticate(new UsernamePasswordAuthenticationToken(emailOrUsername, password));
             if (a.isAuthenticated()) {
+                // Fetch user to get username
+                User user = userService.findByEmail(a.getName())
+                        .orElseGet(() -> userService.findByUsername(a.getName()).orElse(null));
+                
+                if (user == null) {
+                    return ResponseEntity.status(401).body(Map.of("error", "user-not-found"));
+                }
+                
                 String token = JwtUtil.generateAccessToken(a.getName());
                 String refresh = refreshTokenService.generateAndStore(a.getName());
-                return ResponseEntity.ok(Map.of("token", token, "refreshToken", refresh, "expiresIn", JwtUtil.ACCESS_TOKEN_EXP_MS));
+                return ResponseEntity.ok(Map.of(
+                    "token", token, 
+                    "refreshToken", refresh, 
+                    "expiresIn", JwtUtil.ACCESS_TOKEN_EXP_MS,
+                    "username", user.getUsername(),
+                    "email", user.getEmail()
+                ));
             }
         } catch (AuthenticationException ex) {
             return ResponseEntity.status(401).body(Map.of("error", "invalid-credentials"));
@@ -103,7 +117,20 @@ public class AuthController {
         
         try {
             User user = userService.createUser(email, username, password);
-            return ResponseEntity.ok(Map.of("success", true, "message", "Account created successfully", "username", user.getUsername()));
+            
+            // Auto-login: generate tokens
+            String token = JwtUtil.generateAccessToken(user.getEmail());
+            String refresh = refreshTokenService.generateAndStore(user.getEmail());
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true, 
+                "message", "Account created successfully",
+                "token", token,
+                "refreshToken", refresh,
+                "expiresIn", JwtUtil.ACCESS_TOKEN_EXP_MS,
+                "username", user.getUsername(),
+                "email", user.getEmail()
+            ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

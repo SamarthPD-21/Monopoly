@@ -1,26 +1,27 @@
 import { useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 
-export default function LoginForm({ onLogin, onCancel }: { onLogin: (token: string) => void; onCancel?: () => void }) {
-  const emailRef = useRef<HTMLInputElement | null>(null)
+export default function LoginForm({ onLogin, onCancel }: { onLogin: (token: string, username?: string) => void; onCancel?: () => void }) {
+  const emailOrUsernameRef = useRef<HTMLInputElement | null>(null)
   const passRef = useRef<HTMLInputElement | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function login() {
-    const email = emailRef.current?.value || ''
+    const emailOrUsername = emailOrUsernameRef.current?.value || ''
     const password = passRef.current?.value || ''
     
-    if (!email || !password) {
+    if (!emailOrUsername || !password) {
       toast.error('Please fill in all fields')
       return
     }
     
     setLoading(true)
     try {
+      // Send as 'email' field but backend accepts both email and username
       const res = await fetch('http://localhost:8080/auth/token', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ email, password }) 
+        body: JSON.stringify({ email: emailOrUsername, password }) 
       })
       const j = await res.json()
       if (res.ok && j.token) {
@@ -30,7 +31,7 @@ export default function LoginForm({ onLogin, onCancel }: { onLogin: (token: stri
           try { localStorage.setItem('refreshToken', j.refreshToken) } catch {}
         }
         toast.success('Welcome back!')
-        onLogin(j.token)
+        onLogin(j.token, j.username)
         if (onCancel) onCancel()
       } else {
         toast.error('Login failed: ' + (j.error || 'Invalid credentials'))
@@ -50,11 +51,11 @@ export default function LoginForm({ onLogin, onCancel }: { onLogin: (token: stri
       <p className="text-sm text-purple-300/70 text-center">Sign in to join or create a lobby and play in realtime.</p>
       <div className="flex flex-col gap-4 mt-6">
         <div>
-          <label className="block text-xs uppercase tracking-wider text-purple-300 mb-2 font-medium">Email</label>
+          <label className="block text-xs uppercase tracking-wider text-purple-300 mb-2 font-medium">Email or Username</label>
           <input 
-            ref={emailRef} 
-            type="email"
-            placeholder="your@email.com" 
+            ref={emailOrUsernameRef} 
+            type="text"
+            placeholder="your@email.com or username" 
             className="w-full bg-transparent border border-purple-500/30 px-4 py-3 rounded-lg text-purple-100 placeholder:text-purple-400/50 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all"
             disabled={loading}
           />

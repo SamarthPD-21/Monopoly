@@ -37,7 +37,11 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
     }
 
-    private static record SimplePrincipal(String name) implements Principal {
+    private static class SimplePrincipal implements Principal {
+        private final String name;
+        public SimplePrincipal(String name) {
+            this.name = name;
+        }
         @Override
         public String getName() { return name; }
     }
