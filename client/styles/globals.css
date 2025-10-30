@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #__next {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #0a0118;
+  color: #e0d5ff;
+  overflow-x: hidden;
+}
+
+/* Cyberpunk Button Styles */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200;
+  font-family: 'Orbitron', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c4b5fd;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.3), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.btn:hover::before {
+  transform: translateX(100%);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.5), 0 0 40px rgba(124, 58, 237, 0.3);
+  border-color: rgba(168, 85, 247, 0.8);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c026d3 100%);
+  border: 1px solid rgba(192, 38, 211, 0.6);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+.btn.primary:hover {
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.7), 0 0 60px rgba(124, 58, 237, 0.4);
+  border-color: rgba(192, 38, 211, 0.9);
+}
+
+.btn.ghost {
+  @apply bg-transparent;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #a78bfa;
+}
+
+.btn.ghost:hover {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.6);
+}
+
+/* Animated gradient background */
+@keyframes bgShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-bg {
+  background: 
+    radial-gradient(ellipse at 20% 30%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(168, 85, 247, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(192, 38, 211, 0.08) 0%, transparent 50%),
+    linear-gradient(180deg, #0a0118 0%, #1a0b2e 50%, #0a0118 100%);
+  background-size: 300% 300%;
+  animation: bgShift 25s ease infinite;
+}
+
+/* Floating blobs */
+.floating-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.3;
+  animation: float 20s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.1); }
+  66% { transform: translate(-30px, 30px) scale(0.9); }
+}
+
+.blob-1 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.4) 0%, transparent 70%);
+  top: 10%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.blob-2 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
+  bottom: 15%;
+  right: 10%;
+  animation-delay: -10s;
+}
+
+/* Input styles */
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+  @apply px-4 py-2.5 rounded-lg text-sm;
+  background: rgba(16, 8, 30, 0.6);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #e0d5ff;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+}
+
+input[type="text"]::placeholder,
+input[type="password"]::placeholder,
+input[type="email"]::placeholder {
+  color: rgba(168, 85, 247, 0.5);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus {
+  outline: none;
+  border-color: rgba(168, 85, 247, 0.7);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+}
+
+/* Toast customization */
+.cyberpunk-toast {
+  font-family: 'Inter', sans-serif !important;
+  background: rgba(16, 8, 30, 0.95) !important;
+  border: 1px solid rgba(168, 85, 247, 0.5) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(10px) !important;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3) !important;
+}
+
+.Toastify__progress-bar--success {
+  background: linear-gradient(90deg, #7c3aed, #a855f7) !important;
+}
+
+.Toastify__progress-bar--error {
+  background: linear-gradient(90deg, #dc2626, #ef4444) !important;
+}
+
+.Toastify__progress-bar--info {
+  background: linear-gradient(90deg, #06b6d4, #0ea5e9) !important;
+}
+
+/* Cyberpunk panel styles */
+.cyber-panel {
+  position: relative;
+  background: rgba(16, 8, 30, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.15);
+}
+
+.cyber-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.6), transparent);
+  filter: blur(1px);
+}
+
+

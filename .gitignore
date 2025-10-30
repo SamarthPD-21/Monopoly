@@ -1,0 +1,151 @@
+# ===========================
+# Next.js / Node.js (Client)
+# ===========================
+
+# Dependencies
+client/node_modules/
+client/.pnp
+client/.pnp.js
+
+# Testing
+client/coverage
+
+# Next.js build output
+client/.next/
+client/out/
+client/build
+
+# Production
+client/dist
+
+# Misc
+client/.DS_Store
+client/*.pem
+
+# Debug
+client/npm-debug.log*
+client/yarn-debug.log*
+client/yarn-error.log*
+
+# Local env files
+client/.env
+client/.env*.local
+client/.env.development.local
+client/.env.test.local
+client/.env.production.local
+
+# Vercel
+client/.vercel
+
+# Typescript
+client/*.tsbuildinfo
+client/next-env.d.ts
+
+# ===========================
+# Java / Spring Boot (Server)
+# ===========================
+
+# Maven
+server/target/
+server/pom.xml.tag
+server/pom.xml.releaseBackup
+server/pom.xml.versionsBackup
+server/pom.xml.next
+server/release.properties
+server/dependency-reduced-pom.xml
+server/buildNumber.properties
+server/.mvn/timing.properties
+server/.mvn/wrapper/maven-wrapper.jar
+
+# Gradle (if used)
+server/.gradle
+server/build/
+server/!gradle/wrapper/gradle-wrapper.jar
+server/!**/src/main/**/build/
+server/!**/src/test/**/build/
+
+# Eclipse
+server/.apt_generated
+server/.classpath
+server/.factorypath
+server/.project
+server/.settings
+server/.springBeans
+server/.sts4-cache
+
+# IntelliJ IDEA
+server/.idea
+server/*.iws
+server/*.iml
+server/*.ipr
+server/out/
+
+# NetBeans
+server/nbproject/private/
+server/nbbuild/
+server/dist/
+server/nbdist/
+server/.nb-gradle/
+
+# VS Code
+server/.vscode/
+
+# Mac
+server/.DS_Store
+
+# Logs
+server/*.log
+server/logs/
+
+# Environment variables
+server/.env
+server/.env.local
+server/.env.production
+server/.env.test
+
+# Application properties with sensitive data
+server/src/main/resources/application-local.properties
+server/src/main/resources/application-dev.properties
+server/src/main/resources/application-prod.properties
+
+# ===========================
+# General
+# ===========================
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*~
+*.backup
