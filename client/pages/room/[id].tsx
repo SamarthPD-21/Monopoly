@@ -21,43 +21,103 @@ export default function RoomPage() {
   const wsRef = useRef<WebSocket | null>(null)
   const confirm = (() => { try { return useConfirm() } catch { return null } })()
 
+  // Redirect to board when game starts
+  useEffect(() => {
+    if (started && id) {
+      router.push(`/board/${id}`)
+    }
+  }, [started, id, router])
+
+  // Players are populated entirely from WebSocket state updates
+  // Do NOT fetch from MongoDB to avoid duplicate players
+
   useEffect(() => {
     if (!id) return
     let closedByUs = false
     async function connect() {
-      const t = await tryRefreshIfNeeded()
-      const url = 'ws://localhost:8080/game?room=' + encodeURIComponent(id) + (t ? `&token=${encodeURIComponent(t)}` : '')
+      let t = null
+      try {
+        t = await tryRefreshIfNeeded()
+      } catch (e) {
+        console.warn('Token refresh failed, connecting without auth', e)
+      }
+      
+      // Build WebSocket URL - only add token if it exists and is valid
+      const wsHost = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080'
+      let url = `${wsHost}/game?room=${encodeURIComponent(id as string)}`
+      if (t && typeof t === 'string' && t.length > 0 && t.length < 2000) {
+        url += `&token=${encodeURIComponent(t)}`
+      }
+      
       if (wsRef.current) try { wsRef.current.close() } catch {}
+      
+      console.debug('Connecting to WebSocket:', url.substring(0, 100) + '...')
       const socket = new WebSocket(url)
       wsRef.current = socket
-      socket.addEventListener('open', () => { setLastWsEvent('open'); console.debug('WS open', url) })
+      
+      socket.addEventListener('open', () => { 
+        setLastWsEvent('open')
+        console.debug('WS connected successfully')
+      })
+      
       socket.addEventListener('message', (ev) => {
         try {
           const msg = JSON.parse(ev.data)
           if (msg.type === 'state') {
-            setPlayers(msg.payload.players || [])
+            // Always update players from WebSocket state (including bots)
+            if (msg.payload.players) {
+              setPlayers(msg.payload.players)
+            }
             setProperties(msg.payload.properties || [])
             setStarted(!!msg.payload.started)
-            setAdminId(msg.payload.adminId || null)
-            setStartAmount(msg.payload.startAmount ?? null)
+            if (msg.payload.adminId) {
+              setAdminId(msg.payload.adminId)
+            }
+            if (msg.payload.startAmount !== null && msg.payload.startAmount !== undefined) {
+              setStartAmount(msg.payload.startAmount)
+            }
           } else if (msg.type === 'assigned') {
             setMyId(msg.payload.id)
           }
         } catch (e) { console.error('invalid msg', e) }
       })
-      socket.addEventListener('close', (ev) => { setLastWsEvent(`close code=${ev.code}`); if (!closedByUs) setTimeout(connect, 1500) })
-      socket.addEventListener('error', (e) => { setLastWsEvent('error'); console.error('ws error', e) })
+      
+      socket.addEventListener('close', (ev) => { 
+        setLastWsEvent(`close code=${ev.code}`)
+        console.debug('WS closed, code:', ev.code)
+        if (!closedByUs) {
+          console.debug('Reconnecting in 2s...')
+          setTimeout(connect, 2000)
+        }
+      })
+      
+      socket.addEventListener('error', (e) => { 
+        setLastWsEvent('error')
+        console.error('WS error:', e)
+      })
+      
       setWs(socket)
     }
     connect()
-    return () => { closedByUs = true; if (wsRef.current) try { wsRef.current.close() } catch {} }
-  }, [id])
+    return () => { 
+      closedByUs = true
+      if (wsRef.current) {
+        try { wsRef.current.close() } catch {}
+      }
+    }
+  }, [id, tryRefreshIfNeeded])
 
   // send join when ws opens
   useEffect(() => {
     if (!ws) return
     const handler = (ev: Event) => {
-      try { const socket = ws; const name = currentUser || (prompt('Enter display name') || 'Player'); socket.send(JSON.stringify({ type: 'join', payload: { name } })) } catch (e) { }
+      try { 
+        const socket = ws
+        const name = currentUser || 'Guest'
+        socket.send(JSON.stringify({ type: 'join', payload: { name } }))
+      } catch (e) { 
+        console.error('Failed to send join message:', e)
+      }
     }
     ws.addEventListener('open', handler)
     return () => { try { ws.removeEventListener('open', handler) } catch {} }

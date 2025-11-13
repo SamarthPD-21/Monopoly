@@ -77,13 +77,13 @@ export default function Home() {
         } else if (msg.type === 'joinResult') {
           const r = msg.payload
           if (r && r.success === false) {
-            alert('Join failed: ' + (r.message || 'unknown'))
+            toast.error('Join failed: ' + (r.message || 'unknown'))
           }
         } else if (msg.type === 'buyResult') {
           const r = msg.payload
           // simple user feedback
-          if (r.success) alert('Property bought!')
-          else alert('Buy failed: ' + r.message)
+          if (r.success) toast.success('Property bought!')
+          else toast.error('Buy failed: ' + r.message)
         } else if (msg.type === 'rollResult') {
           const r = msg.payload
           if (r && typeof r.dice === 'number') setLastDice(r.dice)
@@ -134,25 +134,47 @@ export default function Home() {
   }
 
   async function createLobby() {
-    // always prefer server-side reserved code (anonymous allowed), but protect with rate limiting on server
+    // Check if user is logged in
+    if (!token) {
+      toast.error('Please sign in to create a lobby')
+      openModal('login')
+      return
+    }
+    
     try {
-      const headers: any = {}
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      const res = await fetch('/api/lobbies', { method: 'POST', headers })
+      const headers: any = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+      
+      const res = await fetch('/api/lobbies', { 
+        method: 'POST', 
+        headers 
+      })
+      
       if (res.ok) {
         const data = await res.json()
-        if (data && data.code) { router.push(`/room/${data.code}`); toast.success('Lobby reserved'); return }
+        if (data && data.code) { 
+          toast.success(`Lobby created: ${data.code}`)
+          router.push(`/room/${data.code}`)
+          return 
+        }
       } else if (res.status === 429) {
-        toast.error('Rate limit reached for creating lobbies. Try again later.')
+        toast.error('Rate limit reached. Try again later.')
+        return
+      } else if (res.status === 401) {
+        toast.error('Please sign in to create a lobby')
+        openModal('login')
         return
       } else {
-        toast.error('Failed to reserve lobby on server')
+        const errorData = await res.json().catch(() => ({}))
+        toast.error(`Failed to create lobby: ${errorData.error || 'Unknown error'}`)
+        return
       }
-    } catch (e) { console.error(e); toast.error('Failed to create lobby on server') }
-    // fallback (should be rare)
-    const code = genCode()
-    toast.info('Using temporary lobby code (not reserved)')
-    router.push(`/room/${code}`)
+    } catch (e) { 
+      console.error('Create lobby error:', e)
+      toast.error('Failed to connect to server. Is the backend running?')
+    }
   }
 
   function joinByCode() {

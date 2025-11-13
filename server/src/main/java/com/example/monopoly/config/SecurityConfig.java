@@ -41,6 +41,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/", "/index.html", "/static/**", "/favicon.ico", "/auth/**").permitAll()
+                .requestMatchers("/game").permitAll() // Allow WebSocket connections
                 .anyRequest().authenticated()
             )
             .formLogin(Customizer.withDefaults())

@@ -75,6 +75,15 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             if (data != null && data.get("ready") instanceof Boolean) r = (Boolean) data.get("ready");
             gameService.setReadyForSession(session, r);
             broadcastState(session);
+        } else if ("addBot".equals(type)) {
+            String botName = data != null && data.get("name") instanceof String ? (String) data.get("name") : "Bot";
+            String roomId = getRoomIdFromSession(session);
+            String botId = gameService.addBot(session, botName, roomId);
+            boolean success = botId != null;
+            try { 
+                session.sendMessage(new TextMessage(mapper.writeValueAsString(Map.of("type", "addBotResult", "payload", Map.of("success", success, "botId", botId != null ? botId : ""))))); 
+            } catch (Exception ignored) {}
+            broadcastState(session);
         } else if ("kick".equals(type)) {
             String target = data != null && data.get("playerId") instanceof String ? (String) data.get("playerId") : null;
             boolean ok = false;
@@ -94,6 +103,25 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(mapper.writeValueAsString(Map.of("type", "startResult", "payload", Map.of("success", ok)))));
             } catch (Exception ignored) {}
             broadcastState(session);
+        } else if ("buyProperty".equals(type)) {
+            Integer propertyId = payload.get("propertyId") instanceof Number ? ((Number) payload.get("propertyId")).intValue() : null;
+            String roomId = getRoomIdFromSession(session);
+            String playerId = gameService.getPlayerIdForSession(session);
+            
+            boolean success = false;
+            if (propertyId != null && playerId != null) {
+                success = gameService.buyProperty(roomId, playerId, propertyId);
+            }
+            
+            try {
+                session.sendMessage(new TextMessage(mapper.writeValueAsString(
+                    Map.of("type", "buyPropertyResult", "payload", Map.of("success", success, "propertyId", propertyId != null ? propertyId : -1))
+                )));
+            } catch (Exception ignored) {}
+            
+            if (success) {
+                broadcastState(session);
+            }
         }
     }
 

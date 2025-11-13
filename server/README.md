@@ -1,6 +1,28 @@
-# Monopoly server
+# SPD-Monopoly
 
-Spring Boot server with a WebSocket handler.
+Full-stack multiplayer Monopoly game with real-time gameplay powered by WebSockets, JWT authentication, and MongoDB persistence.
+
+## Tech Stack
+- **Frontend**: Next.js 16, React 18, TypeScript, Tailwind CSS
+- **Backend**: Spring Boot 3.1, Java 21, WebSocket, Spring Security
+- **Database**: MongoDB
+- **Authentication**: JWT tokens with bcrypt password hashing
+
+## Features
+- Real-time multiplayer gameplay with WebSocket communication
+- User authentication and authorization with JWT
+- Lobby creation and management
+- Turn-based game mechanics with dice rolling
+- Property transactions and ownership tracking
+- Bot scheduler for automated players
+- Persistent game state with MongoDB
+- Complete Monopoly board with 40 properties
+
+---
+
+## Server
+
+Spring Boot server with a WebSocket handler for real-time multiplayer communication.
 
 Run with:
 
