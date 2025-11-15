@@ -63,17 +63,8 @@ export default function BoardPage() {
   }, [id])
 
   return (
-    <div className="min-h-screen animated-bg relative overflow-hidden">
-      {/* Floating blobs */}
-      <div className="floating-blob blob-1" aria-hidden />
-      <div className="floating-blob blob-2" aria-hidden />
-      
-      {/* Background video */}
-      <video autoPlay muted loop playsInline className="bg-video" aria-hidden style={{ filter: 'brightness(0.4)' }}>
-        <source src="https://videos.pexels.com/video-files/5680034/5680034-hd_1920_1080_24fps.mp4" type="video/mp4" />
-      </video>
-
-      <div className="relative z-10 h-screen flex">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="h-screen flex">
         {/* Left side - Board (takes all available space) */}
         <div className="flex-1 flex items-center justify-center">
           <Board 
@@ -87,14 +78,14 @@ export default function BoardPage() {
         {/* Right side - Player info (fixed width on video background) */}
         <div className="w-72 flex flex-col gap-3 p-3">
           {/* Header */}
-          <div className="bg-gray-900/60 backdrop-blur-xl border-2 border-purple-500/50 rounded-lg p-3 shadow-2xl">
+          <div className="cyber-panel p-3">
             <div className="text-base font-bold text-purple-300 uppercase tracking-widest" style={{ fontFamily: 'Orbitron, monospace' }}>
               Party <span className="text-cyan-400">{id}</span>
             </div>
           </div>
 
           {/* Players List */}
-          <div className="flex-1 bg-gray-900/60 backdrop-blur-xl border-2 border-purple-500/50 rounded-lg p-3 shadow-2xl overflow-y-auto">
+          <div className="flex-1 cyber-panel p-3 overflow-y-auto">
             <h3 className="text-xs font-bold text-purple-300 uppercase tracking-wider mb-3">Players</h3>
             <div className="space-y-2">
               {players.length === 0 ? (
@@ -166,23 +157,13 @@ export default function BoardPage() {
           </div>
 
           {/* Debug panel at bottom */}
-          <div className="bg-gray-900/60 backdrop-blur-xl border-2 border-purple-500/50 rounded-lg overflow-hidden shadow-2xl">
+          <div className="cyber-panel overflow-hidden">
             <DebugPanel token={token} wsState={ws ? 'open' : 'closed'} lastWsEvent={lastWsEvent} wsUrl={ws ? ws.url : undefined} />
           </div>
         </div>
       </div>
 
-      <style jsx>{`
-        .bg-video { 
-          position: fixed; 
-          inset: 0; 
-          width: 100%; 
-          height: 100%; 
-          object-fit: cover; 
-          z-index: 0; 
-          opacity: 1;
-        }
-      `}</style>
+      <style jsx>{``}</style>
     </div>
   )
 }

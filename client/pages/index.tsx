@@ -6,6 +6,7 @@ import Dice from '../components/Dice'
 import Lobby from '../components/Lobby'
 import DebugPanel from '../components/DebugPanel'
 import { useAuth } from '../context/AuthContext'
+import { useModal } from '../context/ModalContext'
 
 type Player = { id: string; name: string; pos: number; money?: number }
 type Property = { id: number; name: string; cost: number; ownerId: string | null }
@@ -24,6 +25,7 @@ export default function Home() {
   const [lastDice, setLastDice] = useState<number | null>(null)
   const nameRef = useRef<HTMLInputElement | null>(null)
   const { token, currentUser, loginWithToken, logout, tryRefreshIfNeeded } = useAuth()
+  const { openModal } = useModal()
   // modal now handled by ModalContext
   const reconnectRef = useRef<number>(0)
   const wsRef = useRef<WebSocket | null>(null)
@@ -199,17 +201,8 @@ export default function Home() {
   const myProperty = me && properties ? properties.find((pr) => pr.id === (me.pos % (properties.length || 1))) : undefined
 
   return (
-    <div className="page animated-bg relative overflow-hidden">
-      {/* Cyberpunk decorative blobs */}
-      <div className="floating-blob blob-1" aria-hidden />
-      <div className="floating-blob blob-2" aria-hidden />
-
-      {/* Purple cyberpunk background video - neon city vibes */}
-      <video autoPlay muted loop playsInline className="bg-video" aria-hidden style={{ filter: 'brightness(0.7)' }}>
-        <source src="https://videos.pexels.com/video-files/5680034/5680034-hd_1920_1080_24fps.mp4" type="video/mp4" />
-      </video>
-
-      <main className="flex-1 p-6 relative z-10">
+    <div className="relative">
+      <main className="flex-1 p-6">
         <div className="flex items-center justify-center w-full min-h-[calc(100vh-4rem)]">
           <div className="w-full max-w-lg">
             {/* Cyberpunk card */}
@@ -266,24 +259,6 @@ export default function Home() {
       <DebugPanel token={token} wsState={connected ? 'open' : 'closed'} lastWsEvent={lastWsEvent} wsUrl={wsUrl} />
 
       <style jsx>{`
-        .page { 
-          display: flex; 
-          flex-direction: column; 
-          min-height: 100vh; 
-          position: relative; 
-          overflow: hidden;
-        }
-        
-        .bg-video { 
-          position: fixed; 
-          inset: 0; 
-          width: 100%; 
-          height: 100%; 
-          object-fit: cover; 
-          z-index: 0; 
-          opacity: 0.4;
-        }
-        
         .cyber-card-home {
           position: relative;
           background: rgba(16, 8, 30, 0.6);

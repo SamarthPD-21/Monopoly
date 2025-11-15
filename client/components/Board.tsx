@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import React from 'react'
+import { tiles as MonopolyTiles, type MonopolyTile } from '../data/properties'
 type Player = { id: string; name: string; pos: number; money?: number }
 type Property = { id: number; name: string; cost: number; ownerId: string | null }
 
@@ -11,52 +12,17 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
 }) {
   const [animatingPlayers, setAnimatingPlayers] = useState<Record<string, number>>({})
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
+  const [trace, setTrace] = useState<number[]>([])
+  // Zoom/pan state
+  const [scale, setScale] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const dragRef = useRef<{startX:number; startY:number; origX:number; origY:number} | null>(null)
   
-  // Fallback: Create default Monopoly properties if none provided
-  const defaultProperties: Property[] = [
-    { id: 0, name: "GO", cost: 0, ownerId: null },
-    { id: 1, name: "Mediterranean Avenue", cost: 60, ownerId: null },
-    { id: 2, name: "Community Chest", cost: 0, ownerId: null },
-    { id: 3, name: "Baltic Avenue", cost: 60, ownerId: null },
-    { id: 4, name: "Income Tax", cost: 200, ownerId: null },
-    { id: 5, name: "Reading Railroad", cost: 200, ownerId: null },
-    { id: 6, name: "Oriental Avenue", cost: 100, ownerId: null },
-    { id: 7, name: "Chance", cost: 0, ownerId: null },
-    { id: 8, name: "Vermont Avenue", cost: 100, ownerId: null },
-    { id: 9, name: "Connecticut Avenue", cost: 120, ownerId: null },
-    { id: 10, name: "Just Visiting", cost: 0, ownerId: null },
-    { id: 11, name: "St. Charles Place", cost: 140, ownerId: null },
-    { id: 12, name: "Electric Company", cost: 150, ownerId: null },
-    { id: 13, name: "States Avenue", cost: 140, ownerId: null },
-    { id: 14, name: "Virginia Avenue", cost: 160, ownerId: null },
-    { id: 15, name: "Pennsylvania Railroad", cost: 200, ownerId: null },
-    { id: 16, name: "St. James Place", cost: 180, ownerId: null },
-    { id: 17, name: "Community Chest", cost: 0, ownerId: null },
-    { id: 18, name: "Tennessee Avenue", cost: 180, ownerId: null },
-    { id: 19, name: "New York Avenue", cost: 200, ownerId: null },
-    { id: 20, name: "Free Parking", cost: 0, ownerId: null },
-    { id: 21, name: "Kentucky Avenue", cost: 220, ownerId: null },
-    { id: 22, name: "Chance", cost: 0, ownerId: null },
-    { id: 23, name: "Indiana Avenue", cost: 220, ownerId: null },
-    { id: 24, name: "Illinois Avenue", cost: 240, ownerId: null },
-    { id: 25, name: "B&O Railroad", cost: 200, ownerId: null },
-    { id: 26, name: "Atlantic Avenue", cost: 260, ownerId: null },
-    { id: 27, name: "Ventnor Avenue", cost: 260, ownerId: null },
-    { id: 28, name: "Water Works", cost: 150, ownerId: null },
-    { id: 29, name: "Marvin Gardens", cost: 280, ownerId: null },
-    { id: 30, name: "Go To Jail", cost: 0, ownerId: null },
-    { id: 31, name: "Pacific Avenue", cost: 300, ownerId: null },
-    { id: 32, name: "North Carolina Avenue", cost: 300, ownerId: null },
-    { id: 33, name: "Community Chest", cost: 0, ownerId: null },
-    { id: 34, name: "Pennsylvania Avenue", cost: 320, ownerId: null },
-    { id: 35, name: "Short Line Railroad", cost: 200, ownerId: null },
-    { id: 36, name: "Chance", cost: 0, ownerId: null },
-    { id: 37, name: "Park Place", cost: 350, ownerId: null },
-    { id: 38, name: "Luxury Tax", cost: 100, ownerId: null },
-    { id: 39, name: "Boardwalk", cost: 400, ownerId: null },
-  ]
-  
-  const boardProperties = properties && properties.length > 0 ? properties : defaultProperties
+  // Use official tile data; map server ownership if provided
+  const boardProperties: Property[] = (properties && properties.length > 0
+    ? properties
+    : MonopolyTiles.map(t => ({ id: t.id, name: t.name, cost: t.price ?? 0, ownerId: null }))
+  )
   
   console.log('🎲 Board rendering with:', {
     players: players.length,
@@ -77,6 +43,15 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
     }
   }
   
+  // Helper to get official tile meta (with true rents) by id
+  const getTileMetaById = (id: number): MonopolyTile | undefined => MonopolyTiles.find(t => t.id === id)
+
+  // Fallback rent estimation only if meta is missing
+  const getEstimatedRentTable = (cost: number) => {
+    const base = Math.max(1, Math.floor(cost * 0.1))
+    return { base, house1: base * 5, house2: base * 15, house3: base * 45, house4: base * 80, hotel: base * 125 }
+  }
+  
   const myPlayer = players.find(p => p.id === myId)
   
   // Initialize display positions
@@ -92,7 +67,7 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
     }
   }, [players])
 
-  // Animate position changes
+  // Animate position changes with trace highlight
   useEffect(() => {
     players.forEach(p => {
       const currentPos = animatingPlayers[p.id] ?? p.pos
@@ -121,52 +96,63 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
   // Get tile position and rotation for proper Monopoly board layout
   // Bottom: 0-10, Left: 11-19, Top: 20-30, Right: 31-39
   const getTileStyle = (index: number): React.CSSProperties => {
-    const boardSize = 100 // percentage
-    const tileWidth = 8.5 // percentage
-    const tileHeight = 13 // percentage
-    
-    // Bottom row (0-10): GO to Just Visiting - RIGHT TO LEFT
+    // Percent-based layout derived from a perfect 11x11 grid
+    const sideThickness = 13 // percentage used for corner width/height
+    const between = (100 - 2 * sideThickness) / 9 // spans between corners
+
+    // Bottom row (0..10) right → left
     if (index >= 0 && index <= 10) {
+      if (index === 0) {
+        return { bottom: 0, right: 0, width: `${sideThickness}%`, height: `${sideThickness}%`, zIndex: 20 }
+      }
+      if (index === 10) {
+        return { bottom: 0, left: 0, width: `${sideThickness}%`, height: `${sideThickness}%`, zIndex: 20 }
+      }
+      const pos = index - 1
       return {
         bottom: 0,
-        right: `${index * tileWidth}%`,
-        width: `${tileWidth}%`,
-        height: `${tileHeight}%`,
-        zIndex: 20
+        right: `${sideThickness + pos * between}%`,
+        width: `${between}%`,
+        height: `${sideThickness}%`,
+        zIndex: 20,
       }
     }
-    // Left column (11-19): BOTTOM TO TOP
-    else if (index >= 11 && index <= 19) {
-      const posInSide = index - 11
+    // Left column (11..19) bottom → top
+    if (index >= 11 && index <= 19) {
+      const pos = index - 11
       return {
         left: 0,
-        bottom: `${tileHeight + posInSide * 8.22}%`, // (100 - 2*13) / 9
-        width: `${tileHeight}%`,
-        height: '8.22%',
-        zIndex: 20
+        bottom: `${sideThickness + pos * between}%`,
+        width: `${sideThickness}%`,
+        height: `${between}%`,
+        zIndex: 20,
       }
     }
-    // Top row (20-30): Free Parking to Go To Jail - LEFT TO RIGHT
-    else if (index >= 20 && index <= 30) {
-      const posInSide = index - 20
+    // Top row (20..30) left → right
+    if (index >= 20 && index <= 30) {
+      if (index === 20) {
+        return { top: 0, left: 0, width: `${sideThickness}%`, height: `${sideThickness}%`, zIndex: 20 }
+      }
+      if (index === 30) {
+        return { top: 0, right: 0, width: `${sideThickness}%`, height: `${sideThickness}%`, zIndex: 20 }
+      }
+      const pos = index - 21
       return {
         top: 0,
-        left: `${posInSide * tileWidth}%`,
-        width: `${tileWidth}%`,
-        height: `${tileHeight}%`,
-        zIndex: 20
+        left: `${sideThickness + pos * between}%`,
+        width: `${between}%`,
+        height: `${sideThickness}%`,
+        zIndex: 20,
       }
     }
-    // Right column (31-39): TOP TO BOTTOM
-    else {
-      const posInSide = index - 31
-      return {
-        right: 0,
-        top: `${tileHeight + posInSide * 8.22}%`,
-        width: `${tileHeight}%`,
-        height: '8.22%',
-        zIndex: 20
-      }
+    // Right column (31..39) top → bottom
+    const pos = index - 31
+    return {
+      right: 0,
+      top: `${sideThickness + pos * between}%`,
+      width: `${sideThickness}%`,
+      height: `${between}%`,
+      zIndex: 20,
     }
   }
 
@@ -221,9 +207,55 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
     return null
   }
 
+  // Tooltip state
+  const boardRef = useRef<HTMLDivElement | null>(null)
+  const [tooltip, setTooltip] = useState<{x:number;y:number;title:string;desc?:string}|null>(null)
+
+  const showTooltip = (e: React.MouseEvent, index: number, prop: Property) => {
+    const tile = e.currentTarget as HTMLElement
+    const rect = tile.getBoundingClientRect()
+    const meta = getTileMetaById(prop.id)
+    let desc: string | undefined
+    if (meta) {
+      if (meta.type === 'property' && meta.rents) {
+        desc = `Price $${meta.price}\nRent $${meta.rents.base}\n1h $${meta.rents.house1} • 2h $${meta.rents.house2}\n3h $${meta.rents.house3} • 4h $${meta.rents.house4}\nHotel $${meta.rents.hotel}`
+      } else if (meta.type === 'railroad') {
+        desc = `Price $${meta.price}\nRent $25/$50/$100/$200 (1-4 railroads)`
+      } else if (meta.type === 'utility') {
+        desc = `Price $${meta.price}\nRent 4× dice (one) / 10× dice (both)`
+      } else if (prop.cost > 0) {
+        desc = `Price $${prop.cost}`
+      }
+    } else if (prop.cost > 0) {
+      desc = `Price $${prop.cost}`
+    }
+    setTooltip({ x: rect.left + rect.width/2, y: rect.top - 8, title: prop.name, desc })
+  }
+  const hideTooltip = () => setTooltip(null)
+
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = -e.deltaY
+    const factor = delta > 0 ? 1.1 : 0.9
+    setScale(s => Math.min(1.8, Math.max(0.6, Number((s * factor).toFixed(3)))))
+  }
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: offset.x, origY: offset.y }
+  }
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!dragRef.current) return
+    const dx = e.clientX - dragRef.current.startX
+    const dy = e.clientY - dragRef.current.startY
+    setOffset({ x: dragRef.current.origX + dx, y: dragRef.current.origY + dy })
+  }
+  const onMouseUp = () => { dragRef.current = null }
+
   return (
     <div className="monopoly-board-container">
-      <div className="monopoly-board">
+      <div className="monopoly-board-viewport" onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+        <div className="board-transform" style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`, transformOrigin: 'top left' }}>
+          <div className="monopoly-board" ref={boardRef}>
         {/* Properties around the board */}
         {boardProperties?.map((prop, index) => {
           const playersHere = players.filter(p => getDisplayPos(p.id) === index)
@@ -236,6 +268,8 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
               className={`property-tile ${isCorner ? 'corner' : ''}`}
               style={getTileStyle(index)}
               onClick={() => handlePropertyClick(prop)}
+              onMouseEnter={(e) => showTooltip(e, index, prop)}
+              onMouseLeave={hideTooltip}
             >
               {!isCorner && (
                 <div 
@@ -249,12 +283,44 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
               <div className="property-info">
                 {icon && <div className="property-icon">{icon}</div>}
                 <div className="property-name">{prop.name}</div>
-                {prop.cost > 0 && (
-                  <>
-                    <div className="property-price">PRICE ${prop.cost}</div>
-                    <div className="property-rent">RENT ${Math.floor(prop.cost * 0.1)}</div>
-                  </>
-                )}
+                {(() => {
+                  const meta = getTileMetaById(prop.id)
+                  if (!meta) return prop.cost > 0 ? (
+                    <>
+                      <div className="property-price">PRICE ${prop.cost}</div>
+                      <div className="property-rent">RENT ${Math.floor(prop.cost * 0.1)}</div>
+                    </>
+                  ) : null
+                  if (meta.type === 'property') {
+                    return (
+                      <>
+                        {meta.price ? <div className="property-price">PRICE ${meta.price}</div> : null}
+                        {meta.rents ? <div className="property-rent">RENT ${meta.rents.base}</div> : null}
+                      </>
+                    )
+                  }
+                  if (meta.type === 'railroad') {
+                    return (
+                      <>
+                        {meta.price ? <div className="property-price">PRICE ${meta.price}</div> : null}
+                        <div className="property-rent">RENT 25/50/100/200</div>
+                      </>
+                    )
+                  }
+                  if (meta.type === 'utility') {
+                    return (
+                      <>
+                        {meta.price ? <div className="property-price">PRICE ${meta.price}</div> : null}
+                        <div className="property-rent">RENT 4×/10×</div>
+                      </>
+                    )
+                  }
+                  return meta.price ? (
+                    <>
+                      <div className="property-price">PRICE ${meta.price}</div>
+                    </>
+                  ) : null
+                })()}
                 {prop.ownerId && (
                   <div className="property-owned-badge">
                     <span className="owned-icon">👑</span>
@@ -296,42 +362,104 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
             </div>
           </div>
         </div>
+          </div>
+        </div>
+        {/* Zoom controls */}
+        <div className="zoom-controls">
+          <button className="btn ghost" onClick={() => setScale(s => Math.min(1.8, Number((s*1.1).toFixed(3))))}>＋</button>
+          <button className="btn ghost" onClick={() => setScale(s => Math.max(0.6, Number((s*0.9).toFixed(3))))}>－</button>
+          <button className="btn ghost" onClick={() => { setScale(1); setOffset({x:0,y:0}) }}>Reset</button>
+        </div>
       </div>
 
-      {/* Property Purchase Modal */}
+      {/* Hover tooltip */}
+      {tooltip && (
+        <div className="tile-tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
+          <div className="tile-tooltip-title">{tooltip.title}</div>
+          {tooltip.desc && <div className="tile-tooltip-desc">{tooltip.desc}</div>}
+        </div>
+      )}
+
+      {/* Property Details Popup */}
       {selectedProperty && (
         <div className="modal-overlay" onClick={() => setSelectedProperty(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
             <h2 className="modal-title">🏠 {selectedProperty.name}</h2>
             <div className="modal-details">
               <div className="modal-row">
-                <span className="modal-label">Purchase Price:</span>
+                <span className="modal-label">Purchase Price</span>
                 <span className="modal-value price">${selectedProperty.cost}</span>
               </div>
-              <div className="modal-row">
-                <span className="modal-label">Rent:</span>
-                <span className="modal-value rent">${Math.floor(selectedProperty.cost * 0.1)}</span>
-              </div>
+              {(() => {
+                const meta = getTileMetaById(selectedProperty.id)
+                if (meta && meta.type === 'property' && meta.rents) {
+                  const r = meta.rents
+                  return (
+                    <>
+                      <div className="modal-row"><span className="modal-label">Rent (no houses)</span><span className="modal-value rent">${r.base}</span></div>
+                      <div className="modal-row"><span className="modal-label">With 1 house</span><span className="modal-value">${r.house1}</span></div>
+                      <div className="modal-row"><span className="modal-label">With 2 houses</span><span className="modal-value">${r.house2}</span></div>
+                      <div className="modal-row"><span className="modal-label">With 3 houses</span><span className="modal-value">${r.house3}</span></div>
+                      <div className="modal-row"><span className="modal-label">With 4 houses</span><span className="modal-value">${r.house4}</span></div>
+                      <div className="modal-row"><span className="modal-label">With hotel</span><span className="modal-value">${r.hotel}</span></div>
+                    </>
+                  )
+                }
+                if (meta && meta.type === 'railroad') {
+                  return (
+                    <>
+                      <div className="modal-row"><span className="modal-label">Rent (railroads owned)</span><span className="modal-value">$25 / $50 / $100 / $200</span></div>
+                    </>
+                  )
+                }
+                if (meta && meta.type === 'utility') {
+                  return (
+                    <>
+                      <div className="modal-row"><span className="modal-label">Rent</span><span className="modal-value">4× dice (one) / 10× dice (both)</span></div>
+                    </>
+                  )
+                }
+                // Fallback estimate
+                const r = getEstimatedRentTable(selectedProperty.cost)
+                return (
+                  <>
+                    <div className="modal-row"><span className="modal-label">Rent (no houses)</span><span className="modal-value rent">${r.base}</span></div>
+                    <div className="modal-row"><span className="modal-label">With 1 house</span><span className="modal-value">${r.house1}</span></div>
+                    <div className="modal-row"><span className="modal-label">With 2 houses</span><span className="modal-value">${r.house2}</span></div>
+                    <div className="modal-row"><span className="modal-label">With 3 houses</span><span className="modal-value">${r.house3}</span></div>
+                    <div className="modal-row"><span className="modal-label">With 4 houses</span><span className="modal-value">${r.house4}</span></div>
+                    <div className="modal-row"><span className="modal-label">With hotel</span><span className="modal-value">${r.hotel}</span></div>
+                  </>
+                )
+              })()}
               {myPlayer && (
                 <div className="modal-row">
-                  <span className="modal-label">Your Money:</span>
+                  <span className="modal-label">Your Money</span>
                   <span className="modal-value money">${myPlayer.money || 0}</span>
+                </div>
+              )}
+              {selectedProperty.ownerId && (
+                <div className="modal-row">
+                  <span className="modal-label">Owned By</span>
+                  <span className="modal-value">{selectedProperty.ownerId}</span>
                 </div>
               )}
             </div>
             <div className="modal-actions">
-              <button 
-                className="modal-btn buy-btn"
-                onClick={handleBuyProperty}
-                disabled={!myPlayer || (myPlayer.money || 0) < selectedProperty.cost}
-              >
-                💰 Buy Property
-              </button>
+              {!selectedProperty.ownerId && (
+                <button 
+                  className="modal-btn buy-btn"
+                  onClick={handleBuyProperty}
+                  disabled={!myPlayer || (myPlayer.money || 0) < selectedProperty.cost}
+                >
+                  💰 Buy Property
+                </button>
+              )}
               <button 
                 className="modal-btn cancel-btn"
                 onClick={() => setSelectedProperty(null)}
               >
-                ✖ Cancel
+                Close
               </button>
             </div>
           </div>
@@ -347,6 +475,21 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
           height: 100%;
           padding: 0;
         }
+
+        .tile-tooltip {
+          position: fixed;
+          transform: translate(-50%, -100%);
+          background: rgba(16, 8, 30, 0.95);
+          border: 1px solid rgba(168, 85, 247, 0.6);
+          color: #e0d5ff;
+          border-radius: 8px;
+          padding: 6px 10px;
+          pointer-events: none;
+          z-index: 1000;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+        .tile-tooltip-title { font-weight: 700; font-size: 12px; }
+        .tile-tooltip-desc { font-size: 11px; opacity: 0.85; white-space: pre-line; }
 
         .monopoly-board {
           position: relative;
@@ -384,11 +527,11 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
         }
 
         .property-tile:hover {
-          transform: scale(1.2) translateY(-8px) rotate(2deg);
+          transform: scale(1.08) translateY(-4px);
           z-index: 200;
           box-shadow: 
-            0 20px 50px rgba(0, 0, 0, 0.8),
-            0 0 40px rgba(255, 215, 0, 0.6),
+            0 16px 40px rgba(0, 0, 0, 0.7),
+            0 0 24px rgba(255, 215, 0, 0.35),
             inset 0 1px 0 rgba(255, 255, 255, 0.8);
         }
 
@@ -728,7 +871,7 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.92);
+          background: rgba(0, 0, 0, 0.6);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -752,10 +895,15 @@ export default function Board({ players, myId, properties, onBuyProperty }: {
             0 0 0 11px #000,
             0 30px 80px rgba(0, 0, 0, 0.9);
           border-radius: 20px;
-          padding: 2.5rem;
-          min-width: 450px;
+          padding: 1.5rem;
+          min-width: 360px;
           animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+          max-width: 90vw;
+          max-height: 90vh;
+          overflow: auto;
         }
+
+        .modal-content.small { max-width: 420px; }
 
         @keyframes slideUpBounce {
           from { 
